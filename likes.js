@@ -1,5 +1,5 @@
 import { likesConfig } from './likes-config.js';
-import { createLikesApi, getVisitorId, isConfigured } from './likes-api.js';
+import { createLikesApi, getVisitorId, isConfigured } from './likes-api.js?v=20261001-toggle';
 
 const widget = document.querySelector('[data-doll-id]');
 
@@ -23,32 +23,37 @@ if (widget && isConfigured(likesConfig)) {
   let reading = false;
   let revision = 0;
   let total = 0;
+  let pendingDesired = null;
 
   function render(result) {
     if (result) {
       loaded = true;
-      total = Math.max(total, result.count);
-      liked = liked || result.liked;
+      total = result.count;
+      liked = result.liked;
       count.textContent = new Intl.NumberFormat('vi-VN').format(total);
       count.setAttribute('aria-label', `${total} lượt thích / いいね ${total}件`);
     }
-    button.disabled = !loaded || liked || sending;
+    button.disabled = !loaded || sending;
     button.setAttribute('aria-pressed', String(liked));
     button.setAttribute('aria-busy', String(sending));
     labelVi.textContent = sending ? 'Đang gửi…' : liked ? 'Đã thích' : 'Thích';
     labelJa.textContent = sending ? '送信中…' : liked ? 'いいね済み' : 'いいね';
+    button.setAttribute('aria-label', liked ? 'Bỏ thích / いいねを取り消す' : 'Thích / いいね');
   }
 
   function showReady() {
-    const message = liked
-      ? 'Cảm ơn bạn!\nありがとうございます！'
-      : 'Bạn thích búp bê này? Hãy chạm vào trái tim.\n気に入ったらハートを押してください。';
-    if (note.textContent !== message) note.textContent = message;
+    note.textContent = '';
+    note.hidden = true;
     retry.hidden = true;
   }
 
+  function showMessage(message) {
+    note.hidden = false;
+    note.textContent = message;
+  }
+
   async function refresh() {
-    if (sending || reading || document.hidden) return;
+    if (sending || reading || pendingDesired !== null || document.hidden) return;
     reading = true;
     const startedAt = revision;
     retry.disabled = true;
@@ -59,9 +64,9 @@ if (widget && isConfigured(likesConfig)) {
       showReady();
     } catch {
       if (startedAt !== revision) return;
-      note.textContent = loaded
+      showMessage(loaded
         ? 'Chưa cập nhật được số lượt thích. Vui lòng thử lại.\n数を更新できません。再読み込みしてください。'
-        : 'Chưa tải được số lượt thích. Vui lòng thử lại.\nいいね数を読み込めません。再読み込みしてください。';
+        : 'Chưa tải được số lượt thích. Vui lòng thử lại.\nいいね数を読み込めません。再読み込みしてください。');
       retry.hidden = false;
     } finally {
       reading = false;
@@ -70,18 +75,20 @@ if (widget && isConfigured(likesConfig)) {
   }
 
   button.addEventListener('click', async () => {
-    if (!loaded || sending || liked) return;
+    if (!loaded || sending) return;
+    pendingDesired ??= !liked;
     sending = true;
     revision += 1; // Ignore any read that began before this write.
     retry.hidden = true;
     render();
     try {
-      // Retrying uses the same visitor ID, even if an earlier response was lost.
-      const result = await api.like(dollId, visitorId);
+      // Retry the same desired state if a successful response was lost.
+      const result = await api.set(dollId, visitorId, pendingDesired);
+      pendingDesired = null;
       render(result);
       showReady();
     } catch {
-      note.textContent = 'Chưa xác nhận được lượt thích. Hãy chạm lại để thử.\n送信を確認できません。もう一度ハートを押してください。';
+      showMessage('Chưa xác nhận được thay đổi. Hãy chạm lại để thử.\n変更を確認できません。もう一度ハートを押してください。');
     } finally {
       sending = false;
       render();
