@@ -1,5 +1,5 @@
 # Không gian Văn hoá Nhật Bản — trang thuyết minh hiện vật
-# 日本文化の空間 — 人形展示の解説ページ
+# 日本文化空間 — 人形展示の解説ページ
 
 共有いいね機能の設定・検証方法: [docs/likes.md](docs/likes.md)
 
