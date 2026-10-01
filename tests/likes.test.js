@@ -7,12 +7,14 @@ import { createLikesApi, getVisitorId, isConfigured } from '../likes-api.js';
 
 const config = { supabaseUrl: 'https://test-project.supabase.co', publishableKey: 'sb_publishable_test' };
 const migration = await readFile(new URL('../supabase/migrations/202609300001_doll_likes.sql', import.meta.url), 'utf8');
+const toggleMigration = await readFile(new URL('../supabase/migrations/202610010001_toggle_doll_likes.sql', import.meta.url), 'utf8');
 let db;
 
 before(async () => {
   db = new PGlite();
   await db.exec('create role anon; create role authenticated;');
   await db.exec(migration);
+  await db.exec(toggleMigration);
   await db.exec('set role anon');
 });
 after(async () => { await db?.close(); });
@@ -21,11 +23,13 @@ after(async () => { await db?.close(); });
 // substituted layer is the HTTP gateway; each caller has a separate visitor ID.
 async function transport(url, options) {
   const method = new URL(url).pathname.split('/').at(-1);
-  assert.ok(['ningyo_get_likes', 'ningyo_add_like'].includes(method));
+  assert.ok(['ningyo_get_likes', 'ningyo_add_like', 'ningyo_set_like'].includes(method));
   assert.equal(options.headers.apikey, config.publishableKey);
   assert.equal(options.credentials, 'omit');
   const body = JSON.parse(options.body);
-  const { rows } = await db.query(`select public.${method}($1::integer, $2::uuid) as result`, [body.p_doll_id, body.p_visitor_id]);
+  const args = [body.p_doll_id, body.p_visitor_id];
+  if (method === 'ningyo_set_like') args.push(body.p_liked);
+  const { rows } = await db.query(`select public.${method}($1::integer, $2::uuid${args.length === 3 ? ", $3::boolean" : ""}) as result`, args);
   return { ok: true, json: async () => rows[0].result };
 }
 
@@ -72,8 +76,41 @@ test('different dolls have independent counters keyed to stable QR filenames', a
     const html = await readFile(new URL(`../${String(n).padStart(2, '0')}.html`, import.meta.url), 'utf8');
     assert.equal((html.match(/class="likes"/g) || []).length, 1);
     assert.ok(html.includes(`data-doll-id="${n}"`));
-    assert.ok(html.includes('<script type="module" src="likes.js"></script>'));
+    assert.ok(html.includes('<script type="module" src="likes.js?v=20261001-toggle"></script>'));
   }
+});
+
+test('cancelling and restoring a like changes the shared count exactly once', async () => {
+  const api = createLikesApi(config, transport);
+  const a = randomUUID();
+  const b = randomUUID();
+  assert.deepEqual(await api.set(3, a, true), { count: 1, liked: true });
+  assert.deepEqual(await api.set(3, b, true), { count: 2, liked: true });
+  assert.deepEqual(await api.set(3, a, false), { count: 1, liked: false });
+  assert.deepEqual(await api.set(3, a, false), { count: 1, liked: false });
+  assert.deepEqual(await api.get(3, b), { count: 1, liked: true });
+  assert.deepEqual(await api.get(3, a), { count: 1, liked: false });
+  assert.deepEqual(await api.set(3, a, true), { count: 2, liked: true });
+  assert.deepEqual(await api.set(3, a, true), { count: 2, liked: true });
+});
+
+test('a lost cancellation response can be retried without restoring the vote', async () => {
+  const id = randomUUID();
+  const api = createLikesApi(config, transport);
+  await api.set(4, id, true);
+  let loseResponse = true;
+  const client = createLikesApi(config, async (...args) => {
+    const response = await transport(...args);
+    if (loseResponse) { loseResponse = false; throw new Error('Connection lost after commit'); }
+    return response;
+  });
+  await assert.rejects(client.set(4, id, false), /Connection lost/);
+  assert.deepEqual(await client.set(4, id, false), { count: 0, liked: false });
+  await db.exec('reset role');
+  await db.exec(toggleMigration);
+  await db.exec('set role anon');
+  assert.deepEqual(await api.get(4, id), { count: 0, liked: false });
+  assert.deepEqual(await api.like(4, id), { count: 1, liked: true });
 });
 
 test('public visitors cannot read voter IDs, set totals, or delete votes', async () => {
@@ -87,12 +124,14 @@ test('server rejects missing or out-of-range IDs without changing counts', async
     await assert.rejects(db.query('select public.ningyo_add_like($1::integer, $2::uuid)', [id, randomUUID()]), /Invalid like request/);
   }
   await assert.rejects(db.query('select public.ningyo_add_like(2, null)'), /Invalid like request/);
+  await assert.rejects(db.query('select public.ningyo_set_like(2, $1::uuid, null)', [randomUUID()]), /Invalid like request/);
   assert.deepEqual(await createLikesApi(config, transport).get(2, randomUUID()), { count: 0, liked: false });
 });
 
 test('rerunning the migration preserves existing likes', async () => {
   await db.exec('reset role');
   await db.exec(migration);
+  await db.exec(toggleMigration);
   await db.exec('set role anon');
   assert.deepEqual(await createLikesApi(config, transport).get(16, randomUUID()), { count: 2, liked: false });
 });

@@ -40,10 +40,10 @@ footer.site{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);fo
 .like-label-vi{font-size:15px;font-weight:700}
 .like-label-ja{font-family:'Noto Sans JP',sans-serif;font-size:11px}
 .like-count{min-width:36px;padding-left:12px;border-left:1px solid currentColor;font-size:21px;font-weight:700;font-variant-numeric:tabular-nums}
-.like-button:not(:disabled):hover{background:#F9EDEB}
+.like-button:not(:disabled):not([aria-pressed=true]):hover{background:#F9EDEB}
 .like-button:not(:disabled):active{transform:scale(.97)}
 .like-button:focus-visible,.like-retry:focus-visible{outline:3px solid var(--gold);outline-offset:4px}
-.like-button[aria-pressed=true]{background:var(--accent);color:#fff;cursor:default}
+.like-button[aria-pressed=true]{background:var(--accent);color:#fff}
 .like-button[aria-pressed=true] .like-heart{fill:currentColor}
 .like-button:disabled:not([aria-pressed=true]){opacity:.6;cursor:wait}
 .like-note{margin:9px 0 0;font-size:12px;line-height:1.7;color:var(--sub);white-space:pre-line}

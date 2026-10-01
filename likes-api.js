@@ -28,7 +28,7 @@ export function createLikesApi(config, fetcher = globalThis.fetch, timeoutMs = 1
   if (!isConfigured(config)) throw new Error('Shared likes are not configured');
   const base = config.supabaseUrl.replace(/\/$/, '') + '/rest/v1/rpc/';
 
-  async function request(method, dollId, visitorId) {
+  async function request(method, dollId, visitorId, desiredLiked) {
     if (!Number.isInteger(dollId) || dollId < 1 || dollId > 43 || !UUID.test(visitorId)) {
       throw new Error('Invalid like request');
     }
@@ -38,7 +38,8 @@ export function createLikesApi(config, fetcher = globalThis.fetch, timeoutMs = 1
       const response = await fetcher(base + method, {
         method: 'POST',
         headers: { apikey: config.publishableKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ p_doll_id: dollId, p_visitor_id: visitorId }),
+        body: JSON.stringify({ p_doll_id: dollId, p_visitor_id: visitorId,
+          ...(desiredLiked === undefined ? {} : { p_liked: desiredLiked }) }),
         signal: controller.signal,
         cache: 'no-store',
         credentials: 'omit',
@@ -48,7 +49,8 @@ export function createLikesApi(config, fetcher = globalThis.fetch, timeoutMs = 1
       const result = await response.json();
       if (!Number.isSafeInteger(result?.count) || result.count < 0
           || typeof result.liked !== 'boolean'
-          || (method === 'ningyo_add_like' && !result.liked)) {
+          || (method === 'ningyo_add_like' && !result.liked)
+          || (desiredLiked !== undefined && result.liked !== desiredLiked)) {
         throw new Error('Invalid shared likes response');
       }
       return result;
@@ -60,5 +62,9 @@ export function createLikesApi(config, fetcher = globalThis.fetch, timeoutMs = 1
   return {
     get: (dollId, visitorId) => request('ningyo_get_likes', dollId, visitorId),
     like: (dollId, visitorId) => request('ningyo_add_like', dollId, visitorId),
+    set: (dollId, visitorId, desiredLiked) => {
+      if (typeof desiredLiked !== 'boolean') throw new Error('Invalid like state');
+      return request('ningyo_set_like', dollId, visitorId, desiredLiked);
+    },
   };
 }
