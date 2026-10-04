@@ -32,20 +32,9 @@ footer.site{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);fo
 .item .j{font-family:'Zen Old Mincho',serif;font-size:13px;color:#3A352C;margin-top:2px}
 .group{margin-top:30px;font-size:13px;letter-spacing:.1em;color:var(--accent);font-weight:700}
 .lead{margin-top:16px;font-size:15px;color:#3A352C}
-.likes{margin-top:20px}
-.likes[hidden],.like-retry[hidden]{display:none}
-.like-button{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:60px;padding:10px 18px;border:1.5px solid var(--accent);border-radius:999px;background:var(--card);color:var(--accent);font:inherit;cursor:pointer;touch-action:manipulation;transition:background .15s,color .15s,transform .15s}
-.like-heart{width:27px;height:27px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8}
-.like-label{display:grid;text-align:left;line-height:1.35}
-.like-label-vi{font-size:15px;font-weight:700}
-.like-label-ja{font-family:'Noto Sans JP',sans-serif;font-size:11px}
-.like-count{min-width:36px;padding-left:12px;border-left:1px solid currentColor;font-size:21px;font-weight:700;font-variant-numeric:tabular-nums}
-.like-button:not(:disabled):not([aria-pressed=true]):hover{background:#F9EDEB}
-.like-button:not(:disabled):active{transform:scale(.97)}
-.like-button:focus-visible,.like-retry:focus-visible{outline:3px solid var(--gold);outline-offset:4px}
-.like-button[aria-pressed=true]{background:var(--accent);color:#fff}
-.like-button[aria-pressed=true] .like-heart{fill:currentColor}
-.like-button:disabled:not([aria-pressed=true]){opacity:.6;cursor:wait}
-.like-note{margin:9px 0 0;font-size:12px;line-height:1.7;color:var(--sub);white-space:pre-line}
-.like-retry{margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;min-height:44px;background:var(--card);color:var(--accent);font:inherit;font-size:12px;cursor:pointer}
-@media(prefers-reduced-motion:reduce){.like-button{transition:none}}
+.survey{margin-top:30px;padding:18px 18px 20px;background:#FFF6F4;border:1px solid #F0DCD8;border-radius:14px;text-align:center}
+.survey .q{font-size:15px;font-weight:600;color:#3A352C}
+.survey .j{margin-top:3px;font-size:12px;color:#6B6455;font-family:'Noto Sans JP',sans-serif}
+.survey a.btn{display:inline-block;margin-top:12px;padding:13px 22px;min-height:44px;background:#9E2A2B;color:#fff;text-decoration:none;border-radius:999px;font-size:15px;font-weight:600}
+.survey a.btn:hover{background:#7A1F20;color:#fff}
+.survey .t{margin-top:8px;font-size:12px;color:#8C8577}
